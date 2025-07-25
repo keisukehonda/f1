@@ -16,3 +16,6 @@ https://www.youtube.com/watch?v=pztkN1RFLKU
 
 Reinforcement Learning Series: Overview of Methods
 https://www.youtube.com/watch?v=i7q8bISGwMQ
+
+Policy Gradient Theorem Explained - Reinforcement Learning
+https://youtu.be/cQfOQcpYRzE?si=LDpbOwG9oyu1Y1dO

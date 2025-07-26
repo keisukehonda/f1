@@ -433,3 +433,230 @@ Toolkit の YAML ワークフローは、後から **Omniverse SceneInspector** 
 [8]: https://github.com/NVIDIA/NeMo-Agent-Toolkit-UI?utm_source=chatgpt.com "NVIDIA/NeMo-Agent-Toolkit-UI - GitHub"
 [9]: https://developer.nvidia.com/blog/how-to-build-custom-ai-agents-with-nvidia-nemo-agent-toolkit-open-source-library/?utm_source=chatgpt.com "How to Build Custom AI Agents with NVIDIA NeMo Agent Toolkit ..."
 [10]: https://www.youtube.com/watch?v=NsogD7UhZ4Q&utm_source=chatgpt.com "How to Build Custom AI Agents with NVIDIA NeMo Agent ... - YouTube"
+
+以下の 4 件を **Issue 登録 → KG Roadmap (#9) へカード追加** する手順を、すべて *CLI（gh コマンド）* で完結できるようにまとめます。ご自身の WSL ターミナルでそのままコピー＆ペーストしてご利用ください。
+（「Phase」「Component」「Priority」ラベルが未作成の場合は、最初に 1️⃣ のラベル作成コマンドだけ実行してください）
+
+---
+
+## 1️⃣ 必要ラベルをまとめて作成（初回のみ）
+
+```bash
+# --- Phase 系 ---
+gh label create "Phase:P0" --color B60205 --description "PoC フェーズ"
+gh label create "Phase:P1" --color D93F0B --description "マルチ法令化フェーズ"
+
+# --- Component 系 ---
+gh label create "Component:Schema" --color 1D76DB --description "スキーマ関連"
+gh label create "Component:Build"  --color 0052CC --description "グラフ構築"
+gh label create "Component:Query"  --color 0E8A16 --description "クエリー/API"
+gh label create "Component:Loader" --color 5319E7 --description "ローダー"
+
+# --- Priority 系（任意。High で統一する場合は一つだけで可） ---
+gh label create "Priority:High" --color E11D21 --description "優先度高"
+```
+
+---
+
+## 2️⃣ Issue を順番に作成 & プロジェクトへ登録
+
+> **変数を先に定義**すると後続コマンドが短くなります。
+
+```bash
+PROJ_NUM=9               # KG Roadmap のプロジェクト番号
+OWNER=keisukehonda
+REPO=f1
+PRIO_LABEL="Priority:High"
+```
+
+### P0 - Schema
+
+```bash
+ISSUE=$(gh issue create \
+  --repo $OWNER/$REPO \
+  --title "P0: node schema v0 – Article ノード属性定義" \
+  --body  "cuDF nodes_df に保持する Article ノードの属性（id, law, article_no, title, text, effective_date）を決定し、テーブル定義として書き起こす" \
+  --label Phase:P0,Component:Schema,$PRIO_LABEL \
+  --assignee @me --format json | jq -r '.number')
+
+gh project item-add $PROJ_NUM --owner $OWNER --issue $ISSUE
+```
+
+### P0 - Build
+
+```bash
+ISSUE=$(gh issue create \
+  --repo $OWNER/$REPO \
+  --title "P0: DiGraph build – nodes_df / edges_df から cuGraph" \
+  --body  "nodes_df・edges_df から cugraph.DiGraph を生成する最小 PoC。PageRank が動作することを確認する" \
+  --label Phase:P0,Component:Build,$PRIO_LABEL \
+  --assignee @me --format json | jq -r '.number')
+
+gh project item-add $PROJ_NUM --owner $OWNER --issue $ISSUE
+```
+
+### P0 - Query
+
+```bash
+ISSUE=$(gh issue create \
+  --repo $OWNER/$REPO \
+  --title "P0: basic query – 条番号→参照先リスト API" \
+  --body  "入力された条番号から参照先（引用・準用）条文 ID を返す Python 関数を実装し、単体テストを追加" \
+  --label Phase:P0,Component:Query,$PRIO_LABEL \
+  --assignee @me --format json | jq -r '.number')
+
+gh project item-add $PROJ_NUM --owner $OWNER --issue $ISSUE
+```
+
+### P1 - Loader
+
+```bash
+ISSUE=$(gh issue create \
+  --repo $OWNER/$REPO \
+  --title "P1: buildinglaw-loader – 条文パーサ実装" \
+  --body  "建築基準法の条文テキスト（e-Gov XML）をパースし、Article ノードおよび参照エッジを抽出するローダーを実装" \
+  --label Phase:P1,Component:Loader,$PRIO_LABEL \
+  --assignee @me --format json | jq -r '.number')
+
+gh project item-add $PROJ_NUM --owner $OWNER --issue $ISSUE
+```
+
+---
+
+## 3️⃣ フィールドの値を設定（Web UI 推奨）
+
+CLI ではなく **Web UI でカードを開き、右側 “Edit fields”** から
+*Phase / Component / Priority* が正しく反映されているか確認し、Status を *Todo* → *In progress* に切り替えてください。
+
+---
+
+### これで完了です 🎉
+
+* KG Roadmap ボードに 4 件のカードが追加され、フェーズや優先度情報も付与されます。
+* もし追加ラベルやフィールドの自動設定が必要になれば、`gh project workflows`（Automation）や GraphQL API で拡張できます。
+
+以下に示すディレクトリレイアウトは、**単一レポジトリ（モノレポ）上で「KG・RL・Omniverse = 3 サブプロジェクト」を並行開発**することを念頭にまとめた推奨案です。Python & CUDA ベースのワークロードを想定しつつ、将来のマイクロサービス分割やパッケージ配布にも耐えられる形にしています。
+
+---
+
+## 要約
+
+* **トップ階層は “src/”“services/”“infra/”** の三本立てで整理し、コードと周辺リソースを厳密に分離します。
+* **各サブプロジェクトは独立した Python パッケージ**（`kg/`, `rl/`, `omni/`）として切り出し、`pyproject.toml` の `[project.optional-dependencies]` で相互依存を宣言します。
+* **共通ユーティリティは `common/` に集約**し、循環参照を排除するため “下位 → 上位” 方向の import 禁止ルールを pre-commit で自動チェックします。
+* **データ／モデル／Docker／CI ファイルなど非コード資産**は `data/`, `models/`, `docker/`, `.github/` など専用フォルダに固定配置し、検索コストを最小化します。
+  これらはモノレポでの ML プロジェクト構造を推奨する複数の調査・実運用記事が示すベストプラクティスに基づきます。([Medium][1], [neptune.ai][2], [Home][3])
+
+---
+
+## 1. ルート階層
+
+| ディレクトリ         | 目的                                          |
+| -------------- | ------------------------------------------- |
+| **src/**       | 各サブプロジェクトのコード（純 Python/CUDA）                |
+| **services/**  | API Gateway・gRPC サービスなど外部公開コンポーネント          |
+| **infra/**     | IaC (Terraform)・Helm Chart・GitHub Actions 等 |
+| **data/**      | 小規模サンプルデータ・合成データのみをコミット                     |
+| **models/**    | 軽量テストモデルまたは NGC モデルのメタ情報                    |
+| **docker/**    | マルチステージ Dockerfile・compose 定義               |
+| **notebooks/** | 実験用 Jupyter Notebook（結果は MLflow へ）          |
+| **tests/**     | ルート以下のすべてを対象にした pytest スイート                 |
+
+> ルート直下にコードと非コードを明確に分けることで、ビルドキャッシュの無駄 invalidation を防げるという報告が多いです。([Medium][4], [DEV Community][5])
+
+---
+
+## 2. `src/` 内の詳細
+
+```
+src/
+├─ kg/          # Knowledge Graph パッケージ
+│  ├─ loaders/
+│  ├─ schema/
+│  ├─ graph_build/
+│  └─ query/
+├─ rl/          # Reinforcement Learning パッケージ
+│  ├─ envs/
+│  ├─ agents/
+│  ├─ training/
+│  └─ evaluation/
+├─ omni/        # Omniverse 連携パッケージ
+│  ├─ scene/
+│  ├─ adapters/
+│  └─ ui/
+└─ common/      # 共有ユーティリティ（ログ・設定・型）
+```
+
+* **各パッケージ直下に `__init__.py`** を置いてモジュールツリーを構成（Python Guide の王道）([docs.python-guide.org][6])
+* 相互に import が必要な場合は **`common/` 経由** に統一し、相互参照ループを潰します。Stack Overflow でも推奨される手法です。([Stack Overflow][7], [Software Engineering Stack Exchange][8])
+* `pyproject.toml` に下記のようなオプション依存を書いておくと、`pip install .[kg]` で KG だけインストールすることも可能です。([Discussions on Python.org][9])
+
+  ```toml
+  [project.optional-dependencies]
+  kg = ["rdflib", "cugraph"]
+  rl = ["gymnasium", "nemo-rl"]
+  omni = ["omni.client", "pyvista"]
+  ```
+
+---
+
+## 3. `services/` ディレクトリ
+
+```
+services/
+├─ api_gateway/   # FastAPI + Uvicorn
+├─ retriever/     # NeMo Retriever microservice
+├─ rl_agent/      # NIM 化した RL マイクロサービス
+└─ kg_query/      # Cypher 互換 API (optional)
+```
+
+各サービスは **独立した Dockerfile** を持ち、`docker-compose.yml` でローカル統合テストを回します。マシンラーニング用モノレポでは「コードは `src/`、実行単位は `services/`」という二階建て構成が推奨されています。([neptune.ai][2])
+
+---
+
+## 4. CI／テスト連携
+
+| ディレクトリ                     | 内容                                                   |
+| -------------------------- | ---------------------------------------------------- |
+| **.github/workflows/**     | Lint, Unit Test, Build, Deploy (= Matrix on `src/*`) |
+| **tests/kg/** 等            | pytest ＋ fixtures。各パッケージの公開 API に合わせて配置              |
+| **pre-commit-config.yaml** | ruff, black, yamllint, import-linter (循環参照検出)        |
+
+CI は **パッケージ単位キャッシュ**（Pants, Poetry, Hatch いずれでも可）を有効活用すると大型モノレポでもビルド時間が抑えられます。([neptune.ai][2], [Medium][10])
+
+---
+
+## 5. データとモデルの扱い
+
+* **大容量生データと学習済みモデルは Git LFS or DVC → S3/NVCF に置く**
+  – レポジトリには *sample* と *schema* のみコミットしてサイズ増を防ぐ。([Medium][1], [DEV Community][5])
+* `data/README.md` にデータ取得スクリプトの手順を明示し、パス依存のハードコードを排除。
+
+---
+
+## 6. 今後の拡張指針
+
+1. **マルチ GPU／Dask 用コード**は `kg/gpu/`・`rl/gpu/` サブパッケージで隔離し、CUDA 依存を明確化。
+2. **LangChain / NeMo Agent Toolkit スクリプト**は `notebooks/agents/` で共有し、PoC のみノートブックで実施。
+3. **モノレポ分割が必要になったら** `src/kg/` を独立リポジトリへ切り出し、`pyproject.toml` の namespace を維持する形で pip 配布が容易。
+
+---
+
+## まとめ
+
+* **src/** に KG・RL・Omni 各パッケージ、**services/** にマイクロサービス、**infra/** に IaC と CI を集約する三層構造が基本。
+* 共通部品は `common/` に分離し、循環参照は import-linter で強制排除。
+* 大容量データ／モデルは Git 外部ストレージ管理を徹底し、レポジトリは「コード＋小規模サンプル」だけを保持。
+
+この構成はモノレポ運用の事例・コミュニティガイドで提案される原則を踏襲しており、サブプロジェクト間の独立性と横串開発のしやすさを両立できます。必要に応じカスタマイズしながら導入してください。
+
+[1]: https://medium.com/analytics-vidhya/folder-structure-for-machine-learning-projects-a7e451a8caaa?utm_source=chatgpt.com "Folder Structure for Machine Learning Projects | by Surya Gutta"
+[2]: https://neptune.ai/blog/organizing-ml-monorepo-with-pants?utm_source=chatgpt.com "Organizing ML Monorepo With Pants - neptune.ai"
+[3]: https://lucapette.me/writing/how-to-structure-a-monorepo/?utm_source=chatgpt.com "How to Structure a Monorepo - Luca Pette"
+[4]: https://medium.com/clarityai-engineering/monorepo-in-data-science-teams-892fe64a9ef0?utm_source=chatgpt.com "Monorepo in Data Science Teams — A Practical Starting Point from ..."
+[5]: https://dev.to/luxdevhq/generic-folder-structure-for-your-machine-learning-projects-4coe?utm_source=chatgpt.com "Generic Folder Structure for your Machine Learning Projects."
+[6]: https://docs.python-guide.org/writing/structure/?utm_source=chatgpt.com "Structuring Your Project - The Hitchhiker's Guide to Python"
+[7]: https://stackoverflow.com/questions/39528736/how-do-you-organise-a-python-project-that-contains-multiple-packages-so-that-eac?utm_source=chatgpt.com "How do you organise a python project that contains multiple ..."
+[8]: https://softwareengineering.stackexchange.com/questions/426446/how-to-structure-python-modules-so-they-are-accesible-from-different-submodules?utm_source=chatgpt.com "How to structure Python modules so they are accesible from different ..."
+[9]: https://discuss.python.org/t/how-to-best-structure-a-large-project-into-multiple-installable-packages/5404?utm_source=chatgpt.com "How to best structure a large project into multiple installable packages"
+[10]: https://medium.com/%40kavyamalla/build-and-install-python-package-with-multiple-directories-referencing-one-another-f27cdfe667e2?utm_source=chatgpt.com "Build and Install Python Package with multiple directories ... - Medium"

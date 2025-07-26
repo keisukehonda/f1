@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "f1"
+version = "0.1.0"
+description = "Building-KG/RL/Omniverse monorepo"
+authors = ["keisukehonda"]
+license = "MIT"
+readme = "README.md"
+packages = [
+  { include = "kg", from = "src" },
+  { include = "rl", from = "src" },
+  { include = "omni", from = "src" },
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+#cudf = "^24.6"
+
+[tool.poetry.group.kg.dependencies]
+#cugraph      = "^24.6"
+"pdfminer.six" = "^20221105"
+beautifulsoup4 = "^4.12"
+lxml = "^5.2"
+
+[tool.poetry.group.rl.dependencies]
+gymnasium       = "^0.29"
+#nemo-rl         = "^0.2"
+
+[tool.poetry.group.omni.dependencies]
+#"omni.client"  = "^2.80"
+#pyvista      = "^0.43"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2"
+ruff   = "^0.4"
+black  = "^24.4"
